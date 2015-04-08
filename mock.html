@@ -8,22 +8,22 @@
   <script src="bundle.js"></script>
   <script>
 
-
-
     var config  = {mqttUrl: 'ws://127.0.0.1:8081/mqtt',
                    httpUrl: 'http://127.0.0.1:8082/'};
 
-    var activeThread ;
+    var activeThread;
 
-    window.addEventListener('load', function() {
-      var mqtt    = require('mqtt');
-      var client  = mqtt.connect(config.mqttUrl,
-                                 {protocolId: 'MQIsdp',
-                                  protocolVersion: 3});
+    var $       = require('jquery');
+    var mqtt    = require('mqtt');
+
+    $(function() {
+      var mqttClient  = mqtt.connect(config.mqttUrl,
+                                     {protocolId: 'MQIsdp',
+                                      protocolVersion: 3});
 
       // TODO How to presence?!
-      //client.subscribe('presence');
-      //client.publish('presence', 'Hello mqtt');
+      //mqttClient.subscribe('presence');
+      //mqttClient.publish('presence', 'Hello mqtt');
 
       var users = {};
 
@@ -37,19 +37,16 @@
       users[me.id] = me;
 
       // Set focus on message input
-      document.querySelector('.msg [type=input]').focus();
+      $('.msg [type=input]').focus();
 
       // Shows message in chat history
       function pushChatHistory(msg) {
-        var div = document.createElement('div');
-        div.innerHTML = '<div class="entry"><img>' +
-                        '<h2></h2><p></p></div>';
-        var entry = div.firstChild;
-        entry.querySelector('img').src = users[msg.from].picture;
-        entry.querySelector('h2').innerText = users[msg.from].name;
-        entry.querySelector('p').innerText = msg.text;
-        var history = document.querySelector('.history');
-        history.insertBefore(entry, history.firstChild);
+        var entry = $('<div class="entry"><img>' +
+                      '<h2></h2><p></p></div>');
+        entry.find('img').attr('src', users[msg.from].picture);
+        entry.find('h2').text(users[msg.from].name);
+        entry.find('p').text(msg.text);
+        $('.history').prepend(entry);
       }
     
       function chatTopic(id) {
@@ -58,7 +55,7 @@
 
       function changeThread(threadId){
         //get thread history
-        document.querySelector('.history').innerHTML = '';
+        $('.history').html('');
         //listen to thread
         activeThread = threadId;
         //send to thread
@@ -66,18 +63,18 @@
       }
 
       function sendChatMessage(msg) {
-        client.publish(chatTopic(msg.to), JSON.stringify(msg));
+        mqttClient.publish(chatTopic(msg.to), JSON.stringify(msg));
       }
 
-      client.on('message', function (topic, msgRaw) {
+      mqttClient.on('message', function (topic, msgRaw) {
         // message is Buffer 
         var msg = JSON.parse(msgRaw);
         pushChatHistory(msg);
       });
 
-      client.subscribe(chatTopic(me.id));
+      mqttClient.subscribe(chatTopic(me.id));
       
-      document.querySelector('.threads').addEventListener('click', function(ev) {
+      $('.threads').on('click', function(ev) {
         
         var threadId = ev.target.dataset.threadId;
 
@@ -89,26 +86,26 @@
 
       });
 
-      document.querySelector('.msg').addEventListener('submit', function(ev) {
-        
+      $('.msg').on('submit', function(ev) {
+
         ev.preventDefault();
-        var input = ev.target.querySelector('[type=input]');
+        var input = $(ev.target).find('[type=input]');
         var msg = {from: me.id,
                    to: me.id,
-                   text: input.value};
+                   text: input.val()};
 
         if (!msg.text) {
           return;
         }
 
-        input.value = '';
+        input.val('');
 
         pushChatHistory(msg);
         sendChatMessage(msg);
         
-      }, true);
+      });
 
-    }, false);
+    });
   </script>
 
   <style>
