@@ -24,7 +24,8 @@
       var users = {};
 
       // TODO Authentication
-      var username = prompt('Enter username:');
+      // var username = prompt('Enter username:');
+      var username = 'Bellan Bajskorv';
       var me = {id: 666,
                 picture: 'http://placekitten.com/'+(200 + 20*Math.random()).toFixed()
                                               +'/'+(200 + 20*Math.random()).toFixed(),
@@ -62,6 +63,18 @@
       });
 
       client.subscribe(chatTopic(me.id));
+      
+      document.querySelector('.threads').addEventListener('click', function(ev) {
+        
+        var threadId = ev.target.dataset.threadId;
+
+        if (threadId === undefined) {
+          return;
+        }
+
+        console.log(threadId);
+
+      });
 
       document.querySelector('.msg').addEventListener('submit', function(ev) {
         
@@ -97,6 +110,24 @@
     html, body { padding: 0; margin: 0; }
     body { padding: 0 10px; }
 
+    .sidebar { 
+      float: left;
+      width: 15%;
+    }
+
+    .main {
+      width: 84%;
+      float: left;
+    }
+
+    .threads .thread {
+      cursor: pointer;
+    }
+
+    .threads .thread:hover {
+      background: #ddd;
+    }
+
     .msg input {
       font: 24pt 'Helvetica Neue', sans-serif;
       width: 100%;
@@ -127,12 +158,22 @@
     <h1><code>MÖCK</code>ëlïnd</h1>
   </header>
 
-  <form action="" class="msg">
-    <input type="input" placeholder="Chat message">
-  </form>
-
-  <section class="history">
+  <section class="sidebar threads">
+    <p class="thread" data-thread-id=1>Tråd 1</p>
+    <p class="thread" data-thread-id=2>Tråd 2</p>
+    <p class="thread" data-thread-id=3>Tråd 3</p>
   </section>
+
+  <div class="main">
+
+    <form action="" class="msg">
+      <input type="input" placeholder="Chat message">
+    </form>
+
+    <section class="history">
+    </section>
+
+  </div>
 
 </body>
 </html>
