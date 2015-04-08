@@ -8,8 +8,12 @@
   <script src="bundle.js"></script>
   <script>
 
+
+
     var config  = {mqttUrl: 'ws://127.0.0.1:8081/mqtt',
                    httpUrl: 'http://127.0.0.1:8082/'};
+
+    var activeThread ;
 
     window.addEventListener('load', function() {
       var mqtt    = require('mqtt');
@@ -50,6 +54,15 @@
     
       function chatTopic(id) {
         return 'threads/' + id + '/messages';
+      }
+
+      function changeThread(threadId){
+        //get thread history
+        document.querySelector('.history').innerHTML = '';
+        //listen to thread
+        activeThread = threadId;
+        //send to thread
+
       }
 
       function sendChatMessage(msg) {
