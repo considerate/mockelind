@@ -20,12 +20,14 @@
       var users = {};
 
       // TODO Authentication
-      var me = {id: Number(prompt('What is your user ID?')),
+      var username = prompt('Enter username:');
+      var me = {id: 666,
                 picture: 'http://placekitten.com/'+(200 + 20*Math.random()).toFixed()
                                               +'/'+(200 + 20*Math.random()).toFixed(),
-                name: 'Me'};
+                name: username};
       users[me.id] = me;
 
+      // Shows given message in webpage
       function pushChatHistory(msg) {
         var div = document.createElement('div');
         div.innerHTML = '<div class="entry"><img>' +
@@ -37,9 +39,10 @@
         var history = document.querySelector('.history');
         history.insertBefore(entry, history.firstChild);
       }
-
+    
+      // Convenience string maker, not necessary?
       function chatTopic(id) {
-        return '/' + id + '/chat';
+        return 'threads/' + id + '/messages';
       }
 
       function sendChatMessage(msg) {
