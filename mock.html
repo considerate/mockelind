@@ -35,11 +35,24 @@
                                               +'/'+(200 + 20*Math.random()).toFixed(),
                 name: username};
       users[me.id] = me;
+     
+
+      //add initiall threads
+      setThreads(me.id)
 
       // Set focus on message input
       $('.msg [type=input]').focus();
 
       // Shows message in chat history
+      function pushLocalChatHistory(msg) {
+        var entry = $('<div class="entry"><img>' +
+                      '<h2></h2><p></p></div>');
+        entry.find('img').attr('src', users[msg.from].picture);
+        entry.find('h2').text(users[msg.from].name);
+        entry.find('p').text(msg.text);
+        $('.history').prepend(entry);
+      }
+
       function pushChatHistory(msg) {
         var entry = $('<div class="entry"><img>' +
                       '<h2></h2><p></p></div>');
@@ -53,6 +66,38 @@
         return 'threads/' + id + '/messages';
       }
 
+      //förslag
+      function setThreads(id){
+        //load threads for user with id from baseball 
+           //mock load
+        var respons = {
+          "threads": [
+            {"id": "thread 2",
+            "users": ["user1", "user2"],
+            "creator": "user1"
+            },
+            {"id": "thread 1",
+            "users": ["user1", "user3"],
+            "creator": "user3"
+            }
+          ]
+        };
+
+        // create the list of thread names before emptying threads
+        var entries = [];
+        respons.threads.forEach( function(thread) {
+            var threadId = thread.id;
+            var entry = '\n  <p class="thread" data-thread-id='+threadId+'>'+threadId+'</p>';
+            entries.push(entry);
+          }
+        );
+
+        // empty threads
+        $('.threads').html('');
+        //add threads to threads
+        entries.forEach( function(entry) { $('.threads').prepend(entry); } );
+      }
+
       function changeThread(threadId){
         //get thread history
         $('.history').html('');
@@ -61,6 +106,38 @@
         //send to thread
 
       }
+
+
+      function getMessages(thread, messageId){
+        //load messeges from homebase
+          //mockload
+        var respons = { 
+          "messages": [
+            {
+              "id": "message1", 
+              "from": "user1", 
+              "body": "Hello world",
+              "created": "2008-02-10T19:32:01.060Z"
+            },
+            {
+              "id": "message2",
+              "from": "user2",
+              "image": "http://dickpics.com",
+              "created": "2008-08-13T23:12:01.001Z",
+            }
+          ],
+          "links": {
+            "before": "/threads/123/messages/?before=321"
+          }
+         };
+        var messeges = respons.messeges;
+
+
+
+
+       }
+
+      
 
       function sendChatMessage(msg) {
         mqttClient.publish(chatTopic(msg.to), JSON.stringify(msg));
@@ -83,6 +160,7 @@
         }
 
         console.log(threadId);
+        changeThread(threadId);
 
       });
 
@@ -169,9 +247,6 @@
   </header>
 
   <section class="sidebar threads">
-    <p class="thread" data-thread-id=1>Tråd 1</p>
-    <p class="thread" data-thread-id=2>Tråd 2</p>
-    <p class="thread" data-thread-id=3>Tråd 3</p>
   </section>
 
   <div class="main">
