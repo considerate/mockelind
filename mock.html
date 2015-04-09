@@ -8,69 +8,83 @@
   <script src="bundle.js"></script>
   <script>
 
+    var $    = require('jquery');
+    var mqtt = require('mqtt');
+
     var config  = {mqttUrl: 'ws://127.0.0.1:8081/mqtt',
-                   httpUrl: 'http://127.0.0.1:8082/'};
+                   httpUrl: 'http://127.0.0.1:8082'};
 
-    var activeThread;
-
-    var $       = require('jquery');
-    var mqtt    = require('mqtt');
+    // Global application state
+    var activeThreadId;
 
     $(function() {
-      var mqttClient  = mqtt.connect(config.mqttUrl,
-                                     {protocolId: 'MQIsdp',
-                                      protocolVersion: 3});
+      var mqttClient = mqtt.connect(config.mqttUrl,
+                                    {protocolId: 'MQIsdp',
+                                     protocolVersion: 3});
 
       // TODO How to presence?!
       //mqttClient.subscribe('presence');
       //mqttClient.publish('presence', 'Hello mqtt');
 
-      var users = {};
-
       // TODO Authentication
       // var username = prompt('Enter username:');
-      var username = 'Bellan Bajskorv';
-      var me = {id: 666,
-                picture: 'http://placekitten.com/'+(200 + 20*Math.random()).toFixed()
-                                              +'/'+(200 + 20*Math.random()).toFixed(),
-                name: username};
-      users[me.id] = me;
-     
 
-      //add initiall threads
-      setThreads(me.id)
+      // Essential kitten function
+      function placekittenUrl(w, h) {
+        return 'http://placekitten.com/'+w.toFixed()+'/'+h.toFixed();
+      }
+
+      var userCache = {};
+
+      var username = 'Bellan Bajskorv';
+      var userId = 666;
+
+      // Cache phony user information
+      cacheUserInfo({id: userId,
+                     picture: placekittenUrl(200 + 20*Math.random(),
+                                             200 + 20*Math.random()),
+                     name: username});
+
+      // Load current threads
+      setThreads(userId)
 
       // Set focus on message input
       $('.msg [type=input]').focus();
 
+      // Cache user information
+      function cacheUserInfo(user) {
+        userCache[user.id] = user;
+        // Preload profile picture
+        (new Image()).src = user.picture;
+      }
+
+      // Retrieve cached user information or request it from server
+      function getUserInfo(userId) {
+        return userCache[userId];
+      }
       // Shows message in chat history
       function pushLocalChatHistory(msg) {
-        var entry = $('<div class="entry"><img>' +
-                      '<h2></h2><p></p></div>');
-        entry.find('img').attr('src', users[msg.from].picture);
-        entry.find('h2').text(users[msg.from].name);
+        return pushChatHistory($.extend({from: userId}, msg));
+      }
+
+      function pushChatHistory(msg) {
+        var entry = $($.parseHTML('<div class="entry"><img>' +
+                                  '<h2></h2><p></p></div>'));
+        var fromUserInfo = getUserInfo(msg.from);
+        entry.find('img').attr('src', fromUserInfo.picture);
+        entry.find('h2').text(fromUserInfo.name);
         entry.find('p').text(msg.text);
         $('.history').prepend(entry);
       }
 
-      function pushChatHistory(msg) {
-        var entry = $('<div class="entry"><img>' +
-                      '<h2></h2><p></p></div>');
-        entry.find('img').attr('src', users[msg.from].picture);
-        entry.find('h2').text(users[msg.from].name);
-        entry.find('p').text(msg.text);
-        $('.history').prepend(entry);
-      }
-    
       function chatTopic(id) {
         return 'threads/' + id + '/messages';
       }
 
-      //förslag
-      function setThreads(id){
+      function setThreads(userId){
         //load threads for user with id from baseball 
-           //mock load
-        var respons = {
+        //mock load
+        var response = {
           "threads": [
             {"id": "thread 2",
             "users": ["user1", "user2"],
@@ -83,35 +97,33 @@
           ]
         };
 
-        // create the list of thread names before emptying threads
-        var entries = [];
-        respons.threads.forEach( function(thread) {
-            var threadId = thread.id;
-            var entry = '\n  <p class="thread" data-thread-id='+threadId+'>'+threadId+'</p>';
-            entries.push(entry);
-          }
-        );
+        // Replace list of threads by newly created one from response
+        $('.threads').empty().append(response.threads.map(function(thread) {
+          var threadId = thread.id;
+          var p = $($.parseHTML('<p class="thread"></p>'));
+          p.attr('data-thread-id', threadId);
+          p.text(threadId);
+          return p;
+        }));
 
-        // empty threads
-        $('.threads').html('');
-        //add threads to threads
-        entries.forEach( function(entry) { $('.threads').prepend(entry); } );
       }
 
       function changeThread(threadId){
+        console.log('changeThread', arguments);
         //get thread history
-        $('.history').html('');
+        $('.history').empty().append($('<p>(please pretend the history appears here)</p>'));
+        $('.threads .thread.active').removeClass('active');
+        $('.threads .thread[data-thread-id="' + threadId + '"]').addClass('active');
         //listen to thread
-        activeThread = threadId;
+        activeThreadId = threadId;
         //send to thread
 
       }
 
-
       function getMessages(thread, messageId){
-        //load messeges from homebase
+        //load messages from homebase
           //mockload
-        var respons = { 
+        var response = { 
           "messages": [
             {
               "id": "message1", 
@@ -130,14 +142,8 @@
             "before": "/threads/123/messages/?before=321"
           }
          };
-        var messeges = respons.messeges;
-
-
-
-
+        var messages = response.messages;
        }
-
-      
 
       function sendChatMessage(msg) {
         mqttClient.publish(chatTopic(msg.to), JSON.stringify(msg));
@@ -149,17 +155,16 @@
         pushChatHistory(msg);
       });
 
-      mqttClient.subscribe(chatTopic(me.id));
+      //mqttClient.subscribe(chatTopic(me.id));
       
       $('.threads').on('click', function(ev) {
-        
-        var threadId = ev.target.dataset.threadId;
+
+        var threadId = $(ev.target).data('thread-id');
 
         if (threadId === undefined) {
           return;
         }
 
-        console.log(threadId);
         changeThread(threadId);
 
       });
@@ -168,8 +173,8 @@
 
         ev.preventDefault();
         var input = $(ev.target).find('[type=input]');
-        var msg = {from: me.id,
-                   to: me.id,
+        var msg = {from: userId,
+                   to: activeThreadId,
                    text: input.val()};
 
         if (!msg.text) {
@@ -196,25 +201,20 @@
       text-align: center;
     }
     html, body { padding: 0; margin: 0; }
-    body { padding: 0 10px; }
+    body { padding: 0; }
 
-    .sidebar { 
-      float: left;
-      width: 15%;
-    }
+    .sidebar, .main { box-sizing: border-box; padding: 0 5px; }
+    .sidebar { float: left; width: 15%; }
+    .main { float: left; width: 85%; }
 
-    .main {
-      width: 84%;
-      float: left;
-    }
-
+    .threads { }
     .threads .thread {
-      cursor: pointer;
+        cursor: pointer;
+        margin: 0;
+        padding: 5px 10px;
     }
-
-    .threads .thread:hover {
-      background: #ddd;
-    }
+    .threads .thread.active { background: #eee; }
+    .threads .thread:hover { background: #ddd; }
 
     .msg input {
       font: 24pt 'Helvetica Neue', sans-serif;
