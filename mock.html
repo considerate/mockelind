@@ -12,7 +12,7 @@
     var mqtt = require('mqtt');
 
     var config  = {mqttUrl: 'ws://127.0.0.1:8081/mqtt',
-                   httpUrl: 'http://127.0.0.1:8082'};
+                   httpUrl: 'http://127.0.0.1:8088'};
 
     // Global application state
     var activeThreadId;
@@ -26,24 +26,39 @@
       //mqttClient.subscribe('presence');
       //mqttClient.publish('presence', 'Hello mqtt');
 
-      // TODO Authentication
-      // var username = prompt('Enter username:');
-
       // Essential kitten function
       function placekittenUrl(w, h) {
         return 'http://placekitten.com/'+w.toFixed()+'/'+h.toFixed();
       }
 
+      // Create a phony user with a given ID; note that the created users are
+      // unique to each user ID.
+      function phonyUser(userId, name) {
+        if (name === undefined) {
+          var firstNames = ['Tengil', 'Ola', 'Olina', 'Erik', 'Erika', 'Ludvig'];
+          var lastNames = ['Olasson', 'Eriksdotter', 'Megaköttbulle', 'Katlason'];
+          var fn = firstNames[Number(userId) % firstNames.length];
+          var ln = lastNames[Math.floor(Number(userId) / firstNames.length) % lastNames.length];
+          name = fn + ' ' + ln;
+        }
+        var w = 200 + Number(userId) % 20;
+        var h = 200 + Math.floor(Number(userId) / 20) % 20;
+        return {id: userId,
+                name: name,
+                picture: placekittenUrl(w, h)};
+      }
+
+      // TODO Authentication
+      var webToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.' +
+                     'eyJpZCI6IjEzMzcifQ.' +
+                     '3KbzH4L1AbyN9IAKITywGiBPpHRBcCGu2px8kq9yi1Q';
+      var username = 'Bellan Bajskorv';
+      var userId = 1337;
+
       var userCache = {};
 
-      var username = 'Bellan Bajskorv';
-      var userId = 666;
-
       // Cache phony user information
-      cacheUserInfo({id: userId,
-                     picture: placekittenUrl(200 + 20*Math.random(),
-                                             200 + 20*Math.random()),
-                     name: username});
+      cacheUserInfo(phonyUser(userId, username));
 
       // Load current threads
       setThreads(userId)
@@ -60,25 +75,21 @@
 
       // Retrieve cached user information or request it from server
       function getUserInfo(userId) {
+        if (!(userId in userCache)) {
+          cacheUserInfo(phonyUser(userId));
+        }
         return userCache[userId];
       }
-      // Shows message in chat history
-      function pushLocalChatHistory(msg) {
-        return pushChatHistory($.extend({from: userId}, msg));
-      }
 
-      function pushChatHistory(msg) {
+      function chatHistoryElem(msg) {
+        msg = $.extend({from: userId}, msg);
         var entry = $($.parseHTML('<div class="entry"><img>' +
                                   '<h2></h2><p></p></div>'));
         var fromUserInfo = getUserInfo(msg.from);
         entry.find('img').attr('src', fromUserInfo.picture);
         entry.find('h2').text(fromUserInfo.name);
-        entry.find('p').text(msg.text);
+        entry.find('p').text(msg.body);
         $('.history').prepend(entry);
-      }
-
-      function chatTopic(id) {
-        return 'threads/' + id + '/messages';
       }
 
       function setThreads(userId){
@@ -97,53 +108,59 @@
           ]
         };
 
-        // Replace list of threads by newly created one from response
-        $('.threads').empty().append(response.threads.map(function(thread) {
-          var threadId = thread.id;
-          var p = $($.parseHTML('<p class="thread"></p>'));
-          p.attr('data-thread-id', threadId);
-          p.text(threadId);
-          return p;
-        }));
+        $.ajaxSetup({
+          beforeSend: function(xhr) {
+            xhr.setRequestHeader('Authorization', 'Bearer ' + webToken);
+          }
+        });
+
+        $.ajax({
+          url: config.httpUrl + '/users/me/threads',
+          success: function(response) {
+
+            // Subscribe to threads
+            response.threads.map(function(thread) {
+              mqttClient.subscribe('threads/' + thread.id + '/messages');
+            });
+
+            // Replace list of threads by newly created one from response
+            $('.threads').empty().append(response.threads.map(function(thread) {
+              return $($.parseHTML('<p class="thread"></p>'))
+                     .attr('data-thread-id', thread.id)
+                     .text(thread.users
+                          .filter(function(id) { return id != userId; })
+                          .map(function(id) { return getUserInfo(id).name; })
+                          .join(', '));
+            }));
+
+          }
+        });
 
       }
 
       function changeThread(threadId){
         console.log('changeThread', arguments);
         //get thread history
-        $('.history').empty().append($('<p>(please pretend the history appears here)</p>'));
         $('.threads .thread.active').removeClass('active');
         $('.threads .thread[data-thread-id="' + threadId + '"]').addClass('active');
+
         //listen to thread
-        activeThreadId = threadId;
         //send to thread
+        activeThreadId = threadId;
+
+        $('.history').empty();
+        $.ajax({
+          url: config.httpUrl + '/threads/'+threadId+'/messages',
+          success: function(response) {
+            $('.history').append(response.messages.map(chatHistoryElem));
+          }
+        });
 
       }
 
-      function getMessages(thread, messageId){
-        //load messages from homebase
-          //mockload
-        var response = { 
-          "messages": [
-            {
-              "id": "message1", 
-              "from": "user1", 
-              "body": "Hello world",
-              "created": "2008-02-10T19:32:01.060Z"
-            },
-            {
-              "id": "message2",
-              "from": "user2",
-              "image": "http://dickpics.com",
-              "created": "2008-08-13T23:12:01.001Z",
-            }
-          ],
-          "links": {
-            "before": "/threads/123/messages/?before=321"
-          }
-         };
-        var messages = response.messages;
-       }
+      function chatTopic(id) {
+        return 'threads/' + id + '/messages';
+      }
 
       function sendChatMessage(msg) {
         mqttClient.publish(chatTopic(msg.to), JSON.stringify(msg));
@@ -151,11 +168,14 @@
 
       mqttClient.on('message', function (topic, msgRaw) {
         // message is Buffer 
-        var msg = JSON.parse(msgRaw);
-        pushChatHistory(msg);
+        var m, msg = JSON.parse(msgRaw);
+        if (m = topic.match(/threads\/([A-F\d]+)\/messages/)) {
+          var threadId = m[1];
+          if (threadId == activeThreadId) {
+            $('.history').prepend(chatHistoryElem(msg));
+          }
+        }
       });
-
-      //mqttClient.subscribe(chatTopic(me.id));
       
       $('.threads').on('click', function(ev) {
 
@@ -173,17 +193,16 @@
 
         ev.preventDefault();
         var input = $(ev.target).find('[type=input]');
-        var msg = {from: userId,
-                   to: activeThreadId,
-                   text: input.val()};
+        var msg = {to: activeThreadId,
+                   body: input.val()};
 
-        if (!msg.text) {
+        if (!msg.body) {
           return;
         }
 
         input.val('');
 
-        pushChatHistory(msg);
+        $('.history').prepend(chatHistoryElem(msg));
         sendChatMessage(msg);
         
       });
