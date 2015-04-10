@@ -11,8 +11,9 @@
     var $    = require('jquery');
     var mqtt = require('mqtt');
 
-    var config  = {mqttUrl: 'ws://127.0.0.1:8081/mqtt',
-                   httpUrl: 'http://127.0.0.1:8088'};
+    var ip      = '130.229.145.159';
+    var config  = {mqttUrl: 'ws://'+ip+':8081/mqtt',
+                   httpUrl: 'http://'+ip+':8088'};
 
     // Global application state
     var activeThreadId;
@@ -49,11 +50,19 @@
       }
 
       // TODO Authentication
-      var webToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.' +
-                     'eyJpZCI6IjEzMzcifQ.' +
-                     '3KbzH4L1AbyN9IAKITywGiBPpHRBcCGu2px8kq9yi1Q';
-      var username = 'Bellan Bajskorv';
-      var userId = 1337;
+      var webToken, username, userId;
+      if (!location.hash.length) {
+        webToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.' +
+                   'eyJpZCI6IjEzMzcifQ.' +
+                   '3KbzH4L1AbyN9IAKITywGiBPpHRBcCGu2px8kq9yi1Q';
+        username = 'Bellan Bajskorv';
+        userId   = 1337;
+      } else {
+        parts = location.hash.substring(1).split(',');
+        webToken = parts[0];
+        username = parts[2];
+        userId   = Number(parts[1]);
+      }
 
       var userCache = {};
 
