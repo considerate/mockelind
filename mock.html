@@ -11,8 +11,8 @@
     var $    = require('jquery');
     var mqtt = require('mqtt');
 
-    var ip      = '130.229.145.159';
-    var config  = {mqttUrl: 'ws://'+ip+':8081/mqtt',
+    var ip      = '127.0.0.1';
+    var config  = {mqttUrl: 'ws://'+ip+':8080/mqtt',
                    httpUrl: 'http://'+ip+':8088'};
 
     // Global application state
@@ -29,7 +29,7 @@
 
       // Essential kitten function
       function placekittenUrl(w, h) {
-        return 'http://placekitten.com/'+w.toFixed()+'/'+h.toFixed();
+        return 'http://placekitten.com/g/'+w.toFixed()+'/'+h.toFixed();
       }
 
       // Create a phony user with a given ID; note that the created users are
@@ -42,7 +42,7 @@
           var ln = lastNames[Math.floor(Number(userId) / firstNames.length) % lastNames.length];
           name = fn + ' ' + ln;
         }
-        var w = 200 + Number(userId) % 20;
+        var w = 201 + Number(userId) % 20;
         var h = 200 + Math.floor(Number(userId) / 20) % 20;
         return {id: userId,
                 name: name,
@@ -178,7 +178,7 @@
       mqttClient.on('message', function (topic, msgRaw) {
         // message is Buffer 
         var m, msg = JSON.parse(msgRaw);
-        if (m = topic.match(/threads\/([A-F\d]+)\/messages/)) {
+        if (m = topic.match(/threads\/([_A-Za-z\d]+)\/messages/)) {
           var threadId = m[1];
           if (threadId == activeThreadId) {
             $('.history').prepend(chatHistoryElem(msg));
@@ -211,7 +211,7 @@
 
         input.val('');
 
-        $('.history').prepend(chatHistoryElem(msg));
+        //$('.history').prepend(chatHistoryElem(msg));
         sendChatMessage(msg);
         
       });
