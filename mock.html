@@ -13,7 +13,8 @@
 
     var ip      = '127.0.0.1';
     var config  = {mqttUrl: 'ws://'+ip+':8080/mqtt',
-                   httpUrl: 'http://'+ip+':8088'};
+                   httpUrl: 'http://'+ip+':8088',
+                    userApiUrl: 'http://'+ip+':8888'};
 
     // Global application state
     var activeThreadId;
@@ -50,16 +51,30 @@
       }
 
       // TODO Authentication
-      var webToken, username, userId;
+      var getToken, username, userId;
+      function userToken(userId){
+        return $.ajax({
+          url: config.userApiUrl + '/users/' + userId + '/login',
+          method : "POST"
+        }).then( function(data) {
+          return data.token; 
+        });
+      }
+
+      function userName(userId){
+        return $.ajax({
+          url: config.userApiUrl + '/users/' + userId,
+          method : "POST"
+        });
+
+      }
       if (!location.hash.length) {
-        webToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.' +
-                   'eyJpZCI6IjEzMzcifQ.' +
-                   '3KbzH4L1AbyN9IAKITywGiBPpHRBcCGu2px8kq9yi1Q';
-        username = 'Bellan Bajskorv';
-        userId   = 1337;
+        userId   = "ida";
+        username = userName(userId);
+        getToken = userToken(userId);
       } else {
         parts = location.hash.substring(1).split(',');
-        webToken = parts[0];
+        getToken = parts[0];
         username = parts[2];
         userId   = Number(parts[1]);
       }
@@ -117,16 +132,20 @@
           ]
         };
 
-        $.ajaxSetup({
-          beforeSend: function(xhr) {
-            xhr.setRequestHeader('Authorization', 'Bearer ' + webToken);
+        function appendToken(token) {
+          return function(xhr) {
+              xhr.setRequestHeader('Authorization', 'Bearer ' + token);
           }
-        });
+        }
 
-        $.ajax({
-          url: config.httpUrl + '/users/me/threads',
-          success: function(response) {
-
+        getToken
+        .then(function(token) {
+          return $.ajax({
+            url: config.httpUrl + '/users/me/threads',
+            beforeSend : appendToken(token),  
+          });
+        })
+        .then(function(response) {
             // Subscribe to threads
             response.threads.map(function(thread) {
               mqttClient.subscribe('threads/' + thread.id + '/messages');
@@ -135,14 +154,12 @@
             // Replace list of threads by newly created one from response
             $('.threads').empty().append(response.threads.map(function(thread) {
               return $($.parseHTML('<p class="thread"></p>'))
-                     .attr('data-thread-id', thread.id)
-                     .text(thread.users
-                          .filter(function(id) { return id != userId; })
-                          .map(function(id) { return getUserInfo(id).name; })
-                          .join(', '));
+              .attr('data-thread-id', thread.id)
+              .text(thread.users
+                .filter(function(id) { return id != userId; })
+                .map(function(id) { return getUserInfo(id).name; })
+                .join(', '));
             }));
-
-          }
         });
 
       }
