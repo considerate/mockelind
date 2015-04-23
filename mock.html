@@ -20,13 +20,7 @@
     var activeThreadId;
 
     $(function() {
-      var mqttClient = mqtt.connect(config.mqttUrl,
-                                    {protocolId: 'MQIsdp',
-                                     protocolVersion: 3});
 
-      // TODO How to presence?!
-      //mqttClient.subscribe('presence');
-      //mqttClient.publish('presence', 'Hello mqtt');
 
       // Essential kitten function
       function placekittenUrl(w, h) {
@@ -36,6 +30,11 @@
       // Create a phony user with a given ID; note that the created users are
       // unique to each user ID.
       function phonyUser(userId, name) {
+
+        var hashCode = function(s){
+          return s.split("").reduce(function(a,b){a=((a<<5)-a)+b.charCodeAt(0);return a&a},0);
+        }
+
         if (name === undefined) {
           var firstNames = ['Tengil', 'Ola', 'Olina', 'Erik', 'Erika', 'Ludvig'];
           var lastNames = ['Olasson', 'Eriksdotter', 'Megaköttbulle', 'Katlason'];
@@ -43,42 +42,85 @@
           var ln = lastNames[Math.floor(Number(userId) / firstNames.length) % lastNames.length];
           name = fn + ' ' + ln;
         }
-        var w = 201 + Number(userId) % 20;
-        var h = 200 + Math.floor(Number(userId) / 20) % 20;
+        var w = 201 + hashCode(userId) % 20;
+        var h = 200 + Math.floor(hashCode(userId) / 20) % 20;
         return {id: userId,
                 name: name,
                 picture: placekittenUrl(w, h)};
       }
 
-      // TODO Authentication
       var getToken, username, userId;
       function userToken(userId){
-        return $.ajax({
-          url: config.userApiUrl + '/users/' + userId + '/login',
-          method : "POST"
-        }).then( function(data) {
-          return data.token; 
+        return new Promise(function(resolve, reject) {
+            $.ajax({
+              url: config.userApiUrl + '/users/' + userId + '/login',
+              method : "POST"
+            }).then(function(data) {
+                resolve(data.token);
+            }, function(err) {
+                reject(err);
+            });
         });
       }
 
-      function userName(userId){
-        return $.ajax({
-          url: config.userApiUrl + '/users/' + userId,
-          method : "POST"
+      function userData(userId){
+        return new Promise(function(resolve, reject) {
+            $.ajax({
+              url: config.userApiUrl + '/users/' + userId,
+              method : "GET"
+            }).then(function(data) {
+                resolve(data);
+            }, function(err) {
+                reject(err);
+            });
         });
-
       }
       if (!location.hash.length) {
         userId   = "ida";
-        username = userName(userId);
-        getToken = userToken(userId);
       } else {
-        parts = location.hash.substring(1).split(',');
-        getToken = parts[0];
-        username = parts[2];
-        userId   = Number(parts[1]);
+        userId = location.hash.substring(1);
       }
+      getToken = userToken(userId);
+      userData(userId)
+        .then(function(data) {
+          cacheUserInfo(data);
+        });
 
+      function connectMqtt(userId) {
+        return userToken(userId)
+          .then(function(token) {
+            return new Promise(function (resolve) {
+              var topic = 'online/'+userId;
+              var offlinePayload = JSON.stringify({
+                  status: 'offline'
+              });
+              var will = {
+                topic: topic,
+                payload: offlinePayload
+              }
+              var mqttClient = mqtt.connect(config.mqttUrl, {
+                protocolId: 'MQIsdp',
+                protocolVersion: 3,
+                username: userId,
+                password: token,
+                will: will
+              });
+              mqttClient.on('connect', function() {
+                resolve(mqttClient);
+              });
+            });
+          }).then(function(client) {
+            var topic = 'online/'+userId;
+            var onlinePayload = JSON.stringify({
+              status: 'online'
+            });
+            client.publish(topic, onlinePayload, {
+              retain: true
+            });
+
+            return client;
+          });
+      }
       var userCache = {};
 
       // Cache phony user information
@@ -107,7 +149,7 @@
 
       function chatHistoryElem(msg) {
         msg = $.extend({from: userId}, msg);
-        var entry = $($.parseHTML('<div class="entry"><img>' +
+        var entry = $($.parseHTML('<div class="entry">' +
                                   '<h2></h2><p></p></div>'));
         var fromUserInfo = getUserInfo(msg.from);
         entry.find('img').attr('src', fromUserInfo.picture);
@@ -116,33 +158,18 @@
         $('.history').prepend(entry);
       }
 
-      function setThreads(userId){
-        //load threads for user with id from baseball 
-        //mock load
-        var response = {
-          "threads": [
-            {"id": "thread 2",
-            "users": ["user1", "user2"],
-            "creator": "user1"
-            },
-            {"id": "thread 1",
-            "users": ["user1", "user3"],
-            "creator": "user3"
-            }
-          ]
+      function appendToken(token) {
+        return function(xhr) {
+          xhr.setRequestHeader('Authorization', 'Bearer ' + token);
         };
+      }
 
-        function appendToken(token) {
-          return function(xhr) {
-              xhr.setRequestHeader('Authorization', 'Bearer ' + token);
-          }
-        }
-
+      function setThreads(userId){
         getToken
         .then(function(token) {
           return $.ajax({
             url: config.httpUrl + '/users/me/threads',
-            beforeSend : appendToken(token),  
+            beforeSend : appendToken(token),
           });
         })
         .then(function(response) {
@@ -175,11 +202,15 @@
         activeThreadId = threadId;
 
         $('.history').empty();
-        $.ajax({
-          url: config.httpUrl + '/threads/'+threadId+'/messages',
-          success: function(response) {
-            $('.history').append(response.messages.map(chatHistoryElem));
-          }
+        return getToken
+        .then(function(token) {
+            return $.ajax({
+              beforeSend: appendToken(token),
+              url: config.httpUrl + '/threads/'+threadId+'/messages',
+              success: function(response) {
+                $('.history').append(response.messages.map(chatHistoryElem));
+              }
+            });
         });
 
       }
@@ -188,51 +219,49 @@
         return 'threads/' + id + '/messages';
       }
 
-      function sendChatMessage(msg) {
-        mqttClient.publish(chatTopic(msg.to), JSON.stringify(msg));
-      }
-
-      mqttClient.on('message', function (topic, msgRaw) {
-        // message is Buffer 
-        var m, msg = JSON.parse(msgRaw);
-        if (m = topic.match(/threads\/([_A-Za-z\d]+)\/messages/)) {
-          var threadId = m[1];
-          if (threadId == activeThreadId) {
-            $('.history').prepend(chatHistoryElem(msg));
+      connectMqtt(userId)
+      .then(function(mqttClient) {
+          function sendChatMessage(msg) {
+            mqttClient.publish(chatTopic(msg.to), JSON.stringify(msg));
           }
-        }
+
+          mqttClient.on('message', function (topic, msgRaw) {
+            // message is Buffer
+            var m, msg = JSON.parse(msgRaw);
+            if (m = topic.match(/threads\/([_A-Za-z\d]+)\/messages/)) {
+              var threadId = m[1];
+              if (threadId == activeThreadId) {
+                $('.history').prepend(chatHistoryElem(msg));
+              }
+            }
+          });
+
+          $('.threads').on('click', function(ev) {
+            var threadId = $(ev.target).data('thread-id');
+
+            if (threadId === undefined) {
+              return;
+            }
+
+            changeThread(threadId);
+
+          });
+
+          $('.msg').on('submit', function(ev) {
+            ev.preventDefault();
+            var input = $(ev.target).find('[type=input]');
+            var msg = {to: activeThreadId,
+                       body: input.val()};
+
+            if (!msg.body) {
+              return;
+            }
+
+            input.val('');
+
+            sendChatMessage(msg);
+          });
       });
-      
-      $('.threads').on('click', function(ev) {
-
-        var threadId = $(ev.target).data('thread-id');
-
-        if (threadId === undefined) {
-          return;
-        }
-
-        changeThread(threadId);
-
-      });
-
-      $('.msg').on('submit', function(ev) {
-
-        ev.preventDefault();
-        var input = $(ev.target).find('[type=input]');
-        var msg = {to: activeThreadId,
-                   body: input.val()};
-
-        if (!msg.body) {
-          return;
-        }
-
-        input.val('');
-
-        //$('.history').prepend(chatHistoryElem(msg));
-        sendChatMessage(msg);
-        
-      });
-
     });
   </script>
 
