@@ -12,15 +12,14 @@
     var mqtt = require('mqtt');
 
     var ip      = '127.0.0.1';
-    var config  = {mqttUrl: 'ws://'+ip+':8080/mqtt',
+    var config  = {mqttUrl: 'ws://'+ip+':8088/mqtt',
                    httpUrl: 'http://'+ip+':8088',
-                    userApiUrl: 'http://'+ip+':8888'};
+                   userApiUrl: 'http://'+ip+':8888'};
 
     // Global application state
     var activeThreadId;
 
     $(function() {
-
 
       // Essential kitten function
       function placekittenUrl(w, h) {
