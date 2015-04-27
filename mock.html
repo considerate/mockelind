@@ -50,10 +50,11 @@
 
       var getToken, username, userId;
       function userToken(userId){
+        console.log('url', config.userApiUrl + '/users/' + userId + '/login');
         return new Promise(function(resolve, reject) {
             $.ajax({
               url: config.userApiUrl + '/users/' + userId + '/login',
-              method : "POST"
+              method: "POST"
             }).then(function(data) {
                 resolve(data.token);
             }, function(err) {
@@ -63,6 +64,7 @@
       }
 
       function userData(userId){
+        console.log('url', config.userApiUrl + '/users/' + userId);
         return new Promise(function(resolve, reject) {
             $.ajax({
               url: config.userApiUrl + '/users/' + userId,
@@ -77,7 +79,7 @@
       if (!location.hash.length) {
         userId   = "ida";
       } else {
-        userId = location.hash.substring(1);
+        userId   = location.hash.substring(1);
       }
       getToken = userToken(userId);
       userData(userId)
@@ -134,6 +136,9 @@
       // Cache user information
       function cacheUserInfo(user) {
         userCache[user.id] = user;
+        if (user.picture === undefined) {
+          user.picture = phonyUser(user.id).picture;
+        }
         // Preload profile picture
         (new Image()).src = user.picture;
       }
@@ -141,7 +146,8 @@
       // Retrieve cached user information or request it from server
       function getUserInfo(userId) {
         if (!(userId in userCache)) {
-          cacheUserInfo(phonyUser(userId));
+          console.warn('TODO implement look-up');
+          return phonyUser(userId);
         }
         return userCache[userId];
       }
@@ -164,29 +170,6 @@
       }
 
       function setThreads(userId){
-        getToken
-        .then(function(token) {
-          return $.ajax({
-            url: config.httpUrl + '/users/me/threads',
-            beforeSend : appendToken(token),
-          });
-        })
-        .then(function(response) {
-            // Subscribe to threads
-            response.threads.map(function(thread) {
-              mqttClient.subscribe('threads/' + thread.id + '/messages');
-            });
-
-            // Replace list of threads by newly created one from response
-            $('.threads').empty().append(response.threads.map(function(thread) {
-              return $($.parseHTML('<p class="thread"></p>'))
-              .attr('data-thread-id', thread.id)
-              .text(thread.users
-                .filter(function(id) { return id != userId; })
-                .map(function(id) { return getUserInfo(id).name; })
-                .join(', '));
-            }));
-        });
 
       }
 
@@ -201,15 +184,14 @@
         activeThreadId = threadId;
 
         $('.history').empty();
-        return getToken
-        .then(function(token) {
-            return $.ajax({
-              beforeSend: appendToken(token),
-              url: config.httpUrl + '/threads/'+threadId+'/messages',
-              success: function(response) {
-                $('.history').append(response.messages.map(chatHistoryElem));
-              }
-            });
+        return getToken.then(function(token) {
+          console.log('url', config.httpUrl + '/threads/'+threadId+'/messages');
+          return $.ajax({
+            url: config.httpUrl + '/threads/'+threadId+'/messages',
+            beforeSend: appendToken(token)
+          }).then(function(response) {
+            $('.history').append(response.messages.map(chatHistoryElem));
+          });
         });
 
       }
@@ -218,8 +200,32 @@
         return 'threads/' + id + '/messages';
       }
 
-      connectMqtt(userId)
-      .then(function(mqttClient) {
+      Promise.all([getToken, connectMqtt(userId)])
+        .then(function(vals) {
+          var token = vals[0];
+          var mqttClient = vals[1];
+
+          // Get threads
+          $.ajax({
+            url: config.httpUrl + '/users/me/threads',
+            beforeSend: appendToken(token),
+          }).then(function(response) {
+            // Subscribe to threads
+            response.threads.map(function(thread) {
+              mqttClient.subscribe('threads/' + thread.id + '/messages');
+            });
+
+            // Replace list of threads by newly created one from response
+            $('.threads').empty().append(response.threads.map(function(thread) {
+              return $($.parseHTML('<p class="thread"></p>'))
+              .attr('data-thread-id', thread.id)
+              .text(thread.users
+                .filter(function(id) { return id != userId; })
+                .map(function(id) { return getUserInfo(id).name; })
+                .join(', '));
+            }));
+          });
+
           function sendChatMessage(msg) {
             mqttClient.publish(chatTopic(msg.to), JSON.stringify(msg));
           }
@@ -260,8 +266,8 @@
 
             sendChatMessage(msg);
           });
+        });
       });
-    });
   </script>
 
   <style>
