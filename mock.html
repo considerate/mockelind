@@ -19,7 +19,38 @@
     // Global application state
     var activeThreadId;
 
+    // It turns out $.ajax doesn't work like ES6 promises, so this is our
+    // way to bridge the behavior.
+    function ajax() {
+      var self = this;
+      var args = arguments;
+      return new Promise(function(reject, accept) {
+        $.ajax.apply(self, args).then(reject, accept);
+      });
+    }
+
+    function hashCode(s) {
+      return s.split("").reduce(function(a,b){a=((a<<5)-a)+b.charCodeAt(0);return a&a},0);
+    }
+
     $(function() {
+
+      var getToken, username, userId;
+
+      if (!location.hash.length) {
+        userId   = "ida";
+      } else {
+        userId   = location.hash.substring(1);
+      }
+
+      function userToken(userId) {
+        return ajax({
+          url: config.userApiUrl + '/users/' + userId + '/login',
+          method: 'POST'
+        }).then(function(response) {
+          return response.token;
+        });
+      }
 
       // Essential kitten function
       function placekittenUrl(w, h) {
@@ -29,113 +60,23 @@
       // Create a phony user with a given ID; note that the created users are
       // unique to each user ID.
       function phonyUser(userId, name) {
-
-        var hashCode = function(s){
-          return s.split("").reduce(function(a,b){a=((a<<5)-a)+b.charCodeAt(0);return a&a},0);
-        }
+        var n = Math.abs(hashCode(userId));
 
         if (name === undefined) {
           var firstNames = ['Tengil', 'Ola', 'Olina', 'Erik', 'Erika', 'Ludvig'];
           var lastNames = ['Olasson', 'Eriksdotter', 'Megaköttbulle', 'Katlason'];
-          var fn = firstNames[Number(userId) % firstNames.length];
-          var ln = lastNames[Math.floor(Number(userId) / firstNames.length) % lastNames.length];
+          var fn = firstNames[n % firstNames.length];
+          var ln = lastNames[Math.floor(n / firstNames.length) % lastNames.length];
           name = fn + ' ' + ln;
         }
-        var w = 201 + hashCode(userId) % 20;
-        var h = 200 + Math.floor(hashCode(userId) / 20) % 20;
+        var w = 201 + n % 20;
+        var h = 200 + Math.floor(n / 20) % 20;
         return {id: userId,
                 name: name,
                 picture: placekittenUrl(w, h)};
       }
 
-      var getToken, username, userId;
-      function userToken(userId){
-        console.log('url', config.userApiUrl + '/users/' + userId + '/login');
-        return new Promise(function(resolve, reject) {
-            $.ajax({
-              url: config.userApiUrl + '/users/' + userId + '/login',
-              method: "POST"
-            }).then(function(data) {
-                resolve(data.token);
-            }, function(err) {
-                reject(err);
-            });
-        });
-      }
-
-      function userData(userId){
-        console.log('url', config.userApiUrl + '/users/' + userId);
-        return new Promise(function(resolve, reject) {
-            $.ajax({
-              url: config.userApiUrl + '/users/' + userId,
-              method : "GET"
-            }).then(function(data) {
-                resolve(data);
-            }, function(err) {
-                reject(err);
-            });
-        });
-      }
-      if (!location.hash.length) {
-        userId   = "ida";
-      } else {
-        userId   = location.hash.substring(1);
-      }
-      getToken = userToken(userId);
-      userData(userId)
-        .then(function(data) {
-          cacheUserInfo(data);
-        });
-
-      function connectMqtt(userId) {
-        return userToken(userId)
-          .then(function(token) {
-            return new Promise(function (resolve) {
-              var topic = 'online/'+userId;
-              var offlinePayload = JSON.stringify({
-                  status: 'offline'
-              });
-              var will = {
-                topic: topic,
-                payload: offlinePayload
-              }
-              var mqttClient = mqtt.connect(config.mqttUrl, {
-                protocolId: 'MQIsdp',
-                protocolVersion: 3,
-                username: userId,
-                password: token,
-                will: will
-              });
-              mqttClient.on('connect', function() {
-                resolve(mqttClient);
-              });
-            });
-          }).then(function(client) {
-            var topic = 'online/'+userId;
-            var onlinePayload = JSON.stringify({
-              status: 'online'
-            });
-            client.publish(topic, onlinePayload, {
-              retain: true
-            });
-
-            return client;
-          });
-      }
-      var userCache = {};
-
-      // Cache phony user information
-      cacheUserInfo(phonyUser(userId, username));
-
-      // Load current threads
-      setThreads(userId)
-
-      // Set focus on message input
-      $('.msg [type=input]').focus();
-
-      // Cache user information
-      function cacheUserInfo(user) {
-        userCache[user.id] = user;
+      function preloadUserPicture(user) {
         if (user.picture === undefined) {
           user.picture = phonyUser(user.id).picture;
         }
@@ -143,20 +84,89 @@
         (new Image()).src = user.picture;
       }
 
-      // Retrieve cached user information or request it from server
-      function getUserInfo(userId) {
-        if (!(userId in userCache)) {
-          console.warn('TODO implement look-up');
+      var userCache = {};
+      function getUserInfo(userId){
+        return (new Promise(function(resolve, reject) {
+          if (userId in userCache) {
+            return resolve(userCache[userId]);
+          }
+          ajax({
+            url: config.userApiUrl + '/users/' + userId,
+            method : "GET"
+          }).then(function(user) {
+            if (user.id) {
+              resolve(user);
+            } else {
+              reject(new Error('not a user returned from API'));
+            }
+          }, reject);
+        })).then(function(user) {
+          return user;
+        }, function(err) {
+          console.warn('Could not get user', userId, err);
           return phonyUser(userId);
-        }
-        return userCache[userId];
+        }).then(function(user) {
+          preloadUserPicture(user);
+          userCache[user.id] = user;
+          return user;
+        });
       }
 
-      function chatHistoryElem(msg) {
+      function getUserInfoMap(userIds) {
+        // TODO Implement multi user ID GET
+        var users = {};
+        return Promise.all(userIds.map(function(userId) {
+          return getUserInfo(userId).then(function(user) {
+            users[userId] = user;
+          });
+        })).then(function() { return users; });
+      }
+
+      function connectMqtt(userId, token) {
+        return (new Promise(function (resolve) {
+          var topic = 'online/'+userId;
+          var offlinePayload = JSON.stringify({
+              status: 'offline'
+          });
+          var will = {
+            topic: topic,
+            payload: offlinePayload
+          }
+          var mqttClient = mqtt.connect(config.mqttUrl, {
+            protocolId: 'MQIsdp',
+            protocolVersion: 3,
+            username: userId,
+            password: token,
+            will: will
+          });
+          mqttClient.on('connect', function() {
+            resolve(mqttClient);
+          });
+        })).then(function(client) {
+          var topic = 'online/'+userId;
+          var onlinePayload = JSON.stringify({
+            status: 'online'
+          });
+          client.publish(topic, onlinePayload, {
+            retain: true
+          });
+
+          return client;
+        });
+      }
+
+      getToken = userToken(userId);
+      // Preload own user information
+      getUserInfo(userId);
+
+      // Set focus on message input
+      $('.msg [type=input]').focus();
+
+      function chatHistoryElem(users, msg) {
         msg = $.extend({from: userId}, msg);
-        var entry = $($.parseHTML('<div class="entry">' +
+        var entry = $($.parseHTML('<div class="entry"><img>' +
                                   '<h2></h2><p></p></div>'));
-        var fromUserInfo = getUserInfo(msg.from);
+        var fromUserInfo = users[msg.from];
         entry.find('img').attr('src', fromUserInfo.picture);
         entry.find('h2').text(fromUserInfo.name);
         entry.find('p').text(msg.body);
@@ -169,104 +179,149 @@
         };
       }
 
-      function setThreads(userId){
-
-      }
-
-      function changeThread(threadId){
-        console.log('changeThread', arguments);
-        //get thread history
-        $('.threads .thread.active').removeClass('active');
-        $('.threads .thread[data-thread-id="' + threadId + '"]').addClass('active');
-
-        //listen to thread
-        //send to thread
-        activeThreadId = threadId;
-
-        $('.history').empty();
-        return getToken.then(function(token) {
-          console.log('url', config.httpUrl + '/threads/'+threadId+'/messages');
-          return $.ajax({
-            url: config.httpUrl + '/threads/'+threadId+'/messages',
-            beforeSend: appendToken(token)
-          }).then(function(response) {
-            $('.history').append(response.messages.map(chatHistoryElem));
-          });
-        });
-
-      }
-
       function chatTopic(id) {
         return 'threads/' + id + '/messages';
       }
 
-      Promise.all([getToken, connectMqtt(userId)])
-        .then(function(vals) {
-          var token = vals[0];
-          var mqttClient = vals[1];
+      getToken.then(function(token) {
 
-          // Get threads
-          $.ajax({
+        return connectMqtt(userId, token).then(function(mqttClient) {
+          return {
+            userId: userId,
+            token: token,
+            mqttClient: mqttClient
+          };
+        });
+
+      }).then(function(opts) {
+
+        opts.mqttClient.subscribe('users/' + opts.userId + '/newthreads');
+
+        function reloadThreads() {
+          return ajax({
             url: config.httpUrl + '/users/me/threads',
-            beforeSend: appendToken(token),
+            beforeSend: appendToken(opts.token),
           }).then(function(response) {
             // Subscribe to threads
             response.threads.map(function(thread) {
-              mqttClient.subscribe('threads/' + thread.id + '/messages');
+              opts.mqttClient.subscribe('threads/' + thread.id + '/messages');
             });
 
             // Replace list of threads by newly created one from response
-            $('.threads').empty().append(response.threads.map(function(thread) {
-              return $($.parseHTML('<p class="thread"></p>'))
-              .attr('data-thread-id', thread.id)
-              .text(thread.users
-                .filter(function(id) { return id != userId; })
-                .map(function(id) { return getUserInfo(id).name; })
-                .join(', '));
+            return Promise.all(response.threads.map(function(thread) {
+              return getUserInfoMap(thread.users).then(function(users) {
+                return $($.parseHTML('<p class="thread"></p>'))
+                  .attr('data-thread-id', thread.id)
+                  .text(thread.users
+                    .filter(function(id) { return id != opts.userId; })
+                    .map(function(id) { return users[id].name; })
+                    .join(', '));
+              });
+            }));
+          }).then(function(threadEls) {
+            var newThreadEl = $($.parseHTML('<p class="new thread">New thread</h1>'));
+            $('.threads').empty().append(newThreadEl).append(threadEls);
+          });
+        }
+
+        reloadThreads();
+
+        function sendChatMessage(msg) {
+          opts.mqttClient.publish(chatTopic(msg.to), JSON.stringify(msg));
+        }
+
+        opts.mqttClient.on('message', function (topic, msgRaw) {
+          // message is Buffer
+          var m, msg = JSON.parse(msgRaw);
+          if (m = topic.match(/^threads\/([_A-Za-z\d]+)\/messages$/)) {
+            var threadId = m[1];
+            if (threadId == activeThreadId) {
+              getUserInfoMap([msg.from]).then(function(users) {
+                $('.history').prepend(chatHistoryElem(users, msg));
+              });
+            }
+          } else if (m = topic.match(/^users\/[^\/]+\/newthreads$/)) {
+            reloadThreads();
+          }
+        });
+
+        function changeThread(threadId) {
+
+          $('.threads .thread.active').removeClass('active');
+          $('.threads .thread[data-thread-id="' + threadId + '"]').addClass('active');
+
+          //listen to thread
+          //send to thread
+          activeThreadId = threadId;
+
+          $('.history').empty();
+          return ajax({
+            url: config.httpUrl + '/threads/'+threadId+'/messages',
+            beforeSend: appendToken(opts.token)
+          }).then(function(response) {
+            return getUserInfoMap(response.messages.map(function(msg) {
+              return msg.from;
+            })).then(function(users) {
+              return {
+                messages: response.messages,
+                users: users
+              };
+            });
+          }).then(function(opts) {
+            $('.history').append(opts.messages.map(function(msg) {
+              return chatHistoryElem(opts.users, msg);
             }));
           });
 
-          function sendChatMessage(msg) {
-            mqttClient.publish(chatTopic(msg.to), JSON.stringify(msg));
+        }
+
+        function newThread() {
+          var userId, userIds = [];
+          do {
+            userId = prompt('Invite user ID?');
+            if (userId) {
+              userIds.push(userId);
+            }
+          } while (userId);
+          
+          ajax({
+            url: config.httpUrl + '/threads',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({users: userIds}),
+            beforeSend: appendToken(opts.token),
+          });
+        }
+
+        $('.threads').on('click', function(ev) {
+          var threadEl = $(ev.target);
+          var threadId = threadEl.data('thread-id');
+
+          if (threadEl.hasClass('new')) {
+            newThread();
+          } else if (threadId !== undefined) {
+            changeThread(threadId);
           }
 
-          mqttClient.on('message', function (topic, msgRaw) {
-            // message is Buffer
-            var m, msg = JSON.parse(msgRaw);
-            if (m = topic.match(/threads\/([_A-Za-z\d]+)\/messages/)) {
-              var threadId = m[1];
-              if (threadId == activeThreadId) {
-                $('.history').prepend(chatHistoryElem(msg));
-              }
-            }
-          });
-
-          $('.threads').on('click', function(ev) {
-            var threadId = $(ev.target).data('thread-id');
-
-            if (threadId === undefined) {
-              return;
-            }
-
-            changeThread(threadId);
-
-          });
-
-          $('.msg').on('submit', function(ev) {
-            ev.preventDefault();
-            var input = $(ev.target).find('[type=input]');
-            var msg = {to: activeThreadId,
-                       body: input.val()};
-
-            if (!msg.body) {
-              return;
-            }
-
-            input.val('');
-
-            sendChatMessage(msg);
-          });
         });
+
+        $('.msg').on('submit', function(ev) {
+          ev.preventDefault();
+          var input = $(ev.target).find('[type=input]');
+          var msg = {to: activeThreadId,
+                     from: opts.userId,
+                     body: input.val()};
+
+          if (!msg.body) {
+            return;
+          }
+
+          input.val('');
+
+          sendChatMessage(msg);
+        });
+
+      });
       });
   </script>
 
@@ -292,6 +347,7 @@
         margin: 0;
         padding: 5px 10px;
     }
+    .threads .thread.new { font-weight: bold; }
     .threads .thread.active { background: #eee; }
     .threads .thread:hover { background: #ddd; }
 
