@@ -24,7 +24,6 @@ export let postSecure = (base, url, token, data) => {
         headers: {
             'Content-Type': 'application/json',
             'Authorization': 'Bearer ' +token,
-            'Access-Control-Request-Headers': 'Location'
         }
     }).then(response =>
         fetchSecure(base+response.headers.get('Location'),token)
