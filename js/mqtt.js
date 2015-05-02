@@ -1,5 +1,6 @@
-let mqtt = require('mqtt');
+let connect = require('mqtt');
 let Bacon = require('baconjs');
+let config = require('./config');
 let offlinePayload = JSON.stringify({
     status: 'offline'
 });
@@ -12,6 +13,7 @@ let client = null;
 export function connect(userId, token) {
     //If there's already a connection use that one
     if (client) {
+        console.log('Client',client);
         return Promise.resolve(client);
     }
     return new Promise(function (resolve) {
@@ -20,22 +22,26 @@ export function connect(userId, token) {
             topic: topic,
             payload: offlinePayload
         };
-        var mqttClient = mqtt.connect(config.mqttUrl, {
+        var mqttClient = connect(config.urls['3rd-base'], {
             protocolId: 'MQIsdp',
             protocolVersion: 3,
             username: userId,
             password: token,
             will: will
         });
+        console.log('mqtt client',mqttClient);
         client = mqttClient;
-        client.userId = userId;
-        client.on('error', reject);
+        client.on('error', (err) => {
+            console.log(err);
+            reject(err);
+        });
         client.on('connect', () => resolve(client));
     }).then(function(client) {
         var topic = 'online/'+userId;
         client.publish(topic, onlinePayload, {
             retain: true
         });
+        console.log('Connected');
         return client;
     });
 }
@@ -46,7 +52,7 @@ export function disconnect() {
             throw new Error('No client to disconnect');
         }
         mqttClient = client;
-        userId = client.userId;
+        userId = client.options.username;
         //Allow for new connections
         client = null;
         //Then log out and close this connection
@@ -60,17 +66,28 @@ export function disconnect() {
 }
 
 export let subscribe = (mqttClient,subscribeTopic) => {
-    return Bacon.fromBinder(pushEvent => {
-        let handler = (topic,payload) => {
-            if(topic === subscribeTopic) {
-                let result = pushEvent(payload);
-                if (result === Bacon.noMore) {
-                    mqttClient.unsubscribe(subscribeTopic);
-                    mqttClient.off('message', handler);
+    return new Promise((resolve,reject) => {
+        let stream = Bacon.fromBinder(pushEvent => {
+            let handler = (topic,payload) => {
+                if(topic === subscribeTopic) {
+                    //Message recieved on this topic, push to stream
+                    pushEvent(payload.toString());
                 }
+            };
+            mqttClient.on('message', handler);
+            return () => {
+                //Unsubscribe action after no more subscribers
+                mqttClient.unsubscribe(subscribeTopic);
+                mqttClient.off('message', handler);
+            };
+        });
+        mqttClient.subscribe(subscribeTopic, null, (err, granted) => {
+            if(err) {
+                reject(err);
             }
-        };
-        mqttClient.on('message', handler);
-        mqttClient.subscribe(subscribeTopic);
+            else {
+                resolve(stream);
+            }
+        });
     });
 }

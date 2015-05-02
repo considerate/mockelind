@@ -15,7 +15,6 @@ export let fetchJSON = (url,options={headers:{}}) => {
 export let fetchSecure = (url, token, options={headers: {}}) => {
     options.headers = options.headers || {};
     options.headers.Authorization = 'Bearer '+token;
-    console.log(options);
     return fetchJSON(url,options);
 };
 export let postSecure = (base, url, token, data) => {
@@ -27,13 +26,8 @@ export let postSecure = (base, url, token, data) => {
             'Authorization': 'Bearer ' +token,
             'Access-Control-Request-Headers': 'Location'
         }
-    }).then(response =>{
-        response.headers.forEach(function(val,key) {
-            console.log(val,key);
-        });
-        return fetchSecure(base+response.headers.get('Location'),token)
-
-        }
+    }).then(response =>
+        fetchSecure(base+response.headers.get('Location'),token)
     );
 }
 

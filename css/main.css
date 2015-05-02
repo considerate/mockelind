@@ -1,0 +1,103 @@
+
+body {
+    background-image: url(/css/bg2.png);
+    font-size: 16pt;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    background-size: cover;
+    color:white;
+    font-family: "Helvetica Neue Interface M4",Helvetica Neue, Helvetica, sans-serif;
+}
+
+#main {
+    margin: auto;
+    position: relative;
+}
+
+a {
+    display: block;
+    margin: auto;
+    color: #333;
+    width: 100%;
+    text-align: center;
+    margin-top: 1em;
+    text-decoration: none;
+}
+
+.logo {
+    position: absolute;
+    top: 40px;
+    width: 100%;
+    margin: auto;
+    left: 0;
+    right: 0;
+}
+
+.banner {
+    width: 100%;
+    margin-top: 50px;
+}
+
+input[type="text"], input[type="password"] {
+    background-color: transparent;
+    color:white;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    border: none;
+    border-bottom: 1px solid rgba(255,255,255,0.7);
+    display: block;
+    font-size: 140%;
+    font-weight: 100;
+    letter-spacing: 1px;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 8px;
+    padding-right: 8px;
+    width: 18ex;
+    text-align: center;
+    margin-bottom: 10px;
+    height: 2em;
+    box-sizing: border-box;
+    font-family: "Helvetica Neue Interface M4",Helvetica Neue, Helvetica, sans-serif;
+}
+
+input[type="text"]:focus, input[type="password"]:focus {
+    box-shadow:none;
+    background: rgba(255,255,255,0.1);
+    outline: none;
+    background: rgba(255,255,255,0);
+    background: -moz-linear-gradient(top, rgba(255,255,255,0) 0%, rgba(255,255,255,0.1) 100%);
+    background: -webkit-gradient(left top, left bottom, color-stop(0%, rgba(255,255,255,0)), color-stop(100%, rgba(255,255,255,0.1)));
+    background: -webkit-linear-gradient(top, rgba(255,255,255,0) 0%, rgba(255,255,255,0.1) 100%);
+    background: -o-linear-gradient(top, rgba(255,255,255,0) 0%, rgba(255,255,255,0.1) 100%);
+    background: -ms-linear-gradient(top, rgba(255,255,255,0) 0%, rgba(255,255,255,0.1) 100%);
+    background: linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.1) 100%);
+    border-radius-top-left: 4px;
+    border-radius-top-right: 4px;
+}
+
+
+input[type="submit"], button {
+    margin-top: 0.8em;
+    margin-left: auto;
+    margin-right: auto;
+    box-sizing: border-box;
+    width: 18ex;
+    font-size: 140%;
+    letter-spacing: 1px;
+    -webkit-appearance: none;
+    -moz-appearance:none;
+    appearance: none;
+    box-shadow: none;
+    border: none !important;
+    color:white;
+    background-color: rgb(213,81,23);
+    outline: none;
+    padding-left: 8px;
+    padding-right: 8px;
+    height: 2.3em;
+    display: block;
+    font-family: "Helvetica Neue Interface M4",Helvetica Neue, Helvetica, sans-serif;
+    font-weight: 100;
+}

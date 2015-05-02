@@ -7,9 +7,12 @@ let DefaultRoute = factory(Router.DefaultRoute);
 let NotFoundRoute = factory(Router.NotFoundRoute);
 let Login = require('./js/login');
 let ThreadList = require('./js/threadlist');
+let Thread = require('./js/thread');
 
 let routes = Route({location: "history"},
-    Route({path: '/', handler: ThreadList}),
+    DefaultRoute({handler: ThreadList}),
+    Route({path: '/threads',handler: ThreadList}),
+    Route({path: '/threads/:threadid', handler: Thread}),
     Route({path: '/login', handler: Login})
 );
 

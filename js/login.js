@@ -1,6 +1,6 @@
 let React = require('react');
 let auth = require('./auth');
-let {form, input} = React.DOM;
+let {form, input, img, div, a} = React.DOM;
 let getValue = (obj,ref) =>
     obj.refs[ref].getDOMNode().value;
 
@@ -23,11 +23,16 @@ var Login = React.createClass({
         });
         console.log(username,password);
     },
-    render: function() {
-        return form({id: 'loginForm', onSubmit: this.submit},
+    render() {
+        return div({},
+        img({src: '/css/login_logo.png', className: 'logo'}),
+        img({src: '/css/banner.png', className: 'banner'}),
+        form({id: 'loginForm', onSubmit: this.submit},
             input({type: 'text', ref: 'username'}),
             input({type: 'password', ref: 'password'}),
-            input({type: 'submit'})
+            input({type: 'submit', value: 'Log In'})
+        ),
+        a({href:'//friendbase.com'}, 'sign up for free')
         );
     }
 });
