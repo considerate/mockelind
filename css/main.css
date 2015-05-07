@@ -1,17 +1,264 @@
+html {
+    height: 100%;
+}
 
 body {
-    background-image: url(/css/bg2.png);
-    font-size: 16pt;
     background-repeat: no-repeat;
     background-attachment: fixed;
     background-size: cover;
-    color:white;
     font-family: "Helvetica Neue Interface M4",Helvetica Neue, Helvetica, sans-serif;
+    height: 100%;
 }
 
+.login {
+    min-height: 100%;
+    color:white;
+    background-image: url(/css/bg2.png);
+    background-size: cover;
+}
+
+.container {
+    height: 100%;
+}
+
+.thread .scroller {
+    position: absolute;
+    top: 3em;
+    bottom: 6.5em;
+    left: 0;
+    right: 0;
+    -webkit-overflow-scrolling: touch;
+    overflow-y: auto;
+}
+
+.thread .messages {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    width: 100%;
+}
+
+.thread .form {
+    position: absolute;
+    bottom: 3em;
+    left: 0;
+    right: 0;
+}
+
+.thread .form input[type="text"] {
+    position: absolute;
+    bottom: 0em;
+    right: 1em;
+    width: 75vw;
+    border: 1px solid rgb(210,210,210);
+    border-radius: 1em;
+    color: black;
+    line-height: 2em;
+    margin-bottom: 0.2em;
+    padding-left: 0.8em;
+    padding-right: 2.5em;
+}
+
+.thread .form input[type="submit"] {
+    position: absolute;
+    bottom: 0;
+    right: 1em;
+    z-index: 2;
+    border-radius: 2em;
+    margin-bottom: 0.2em;
+    width: 2em;
+    height: 2em !important;
+    line-height: 2em;
+    background-image: url('/css/send.svg');
+    background-size: 1.2em;
+    background-repeat: no-repeat;
+    background-position: 60% center;
+}
+
+.thread .messages > li {
+    margin: 1em;
+    position: static;
+}
+
+.clear {
+  clear: both;
+}
+
+.thread .message {
+    min-height: 1em;
+    font-weight: 200;
+    word-wrap: break-word;
+    max-width: 60%;
+    margin-top: 3em;
+}
+
+.thread .message p {
+    margin: 0;
+    padding: 0;
+    vertical-align: bottom;
+    word-wrap: break-word;
+}
+
+.from-them img {
+    position: absolute;
+    height: 4em;
+    width: 4em;
+    border-radius: 2.5em;
+    bottom: 0;
+    left: -4.9em;
+    border-color: white;
+    border-width: 0.5em;
+    border-style: solid;
+}
+.from-me img {
+    position: absolute;
+    height: 4em;
+    width: 4em;
+    border-radius: 2.5em;
+    bottom: 0;
+    right: -4.9em;
+    border-color: white;
+    border-width: 0.5em;
+    border-style: solid;
+}
+
+
+.from-me {
+  position: relative;
+  padding: 0.5em;
+  color: white;
+  background-color: rgb(255,223,180);
+  margin-right: 5em;
+  float: right;
+  border-top-left-radius: 1em;
+  border-bottom-left-radius: 1em;
+  border-top-right-radius: 0.2em;
+}
+.from-me:before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  right: -2em;
+  bottom: 0em;
+  width: 2em;
+  height: 2em;
+  background-color: rgb(255,223,180);
+}
+
+.from-them {
+  position: relative;
+  padding: 0.5em;
+  color: white;
+  background-color: rgb(232,70,25);
+  margin-left: 5em;
+  float: left;
+  border-top-right-radius: 1em;
+  border-bottom-right-radius: 1em;
+  border-top-left-radius: 0.2em;
+}
+.from-them:before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  left: -2em;
+  bottom: 0em;
+  width: 2em;
+  height: 2em;
+  background-color: rgb(232,70,25);
+}
+
+.threadlist {
+    list-style: none;
+    margin-left: 0;
+    padding-left: 0;
+    margin-top: 0;
+}
+
+.threadlist > li {
+    border-bottom: 1px solid rgba(210,210,210,0.6);
+    margin: 0;
+    padding: 8px;
+    height: 3.6em;
+    position: relative;
+    cursor: pointer;
+}
+.threadlist > li > div {
+    position: absolute;
+    top: 0.3em;
+    left: 4.5em;
+    display: inline-block;
+    height: 3.5em;
+    right: 4.5em;
+    vertical-align: top;
+}
+
+.threadlist > li > .onlinestatus {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 20px;
+    width: 1.5em;
+    height: 1.5em;
+    margin: auto;
+    margin-right: 0.25em;
+    display: inline-block;
+    background-color: rgb(167,235,61);
+    border-radius: 1em;
+    color: white;
+    text-align: center;
+    line-height: 1.5em;
+}
+
+.threadlist > li > .onlinestatus.group {
+    font-weight: 600;
+    font-size: 140%;
+    margin-right: 0;
+    line-height: 1.5em;
+    border-radius: 1em;
+}
+
+.threadlist > li h1  {
+    margin: 0;
+    font-size: 16pt;
+    font-weight: normal;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.threadlist > li img  {
+    margin: 0;
+    height: 3.5em;
+    width: 3.5em;
+    line-height: 3.6em;
+    border-radius: 40px;
+    margin-right: 0.5em;
+}
+
+.threadlist > li .message {
+    font-size: 70%;
+    font-weight: 200;
+    color: rgb(232,70,25);
+    margin: 0;
+    margin-top: 0.3em;
+    width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.threadlist > li .status {
+    font-size: 60%;
+    font-weight: 200;
+    color: rgb(110,110,110);
+    margin: 0;
+    height: 1em;
+}
 #main {
     margin: auto;
     position: relative;
+    height: 100%;
 }
 
 a {
@@ -26,7 +273,7 @@ a {
 
 .logo {
     position: absolute;
-    top: 40px;
+    top: 20px;
     width: 100%;
     margin: auto;
     left: 0;
@@ -35,10 +282,68 @@ a {
 
 .banner {
     width: 100%;
-    margin-top: 50px;
+    margin-top: 30px;
 }
 
-input[type="text"], input[type="password"] {
+header {
+    position: relative;
+    height: 3em;
+    background-color: rgb(232,70,25);
+    background-image: url('left.png'), url('right.png');
+    background-position: top left, top right;
+    background-repeat: no-repeat, no-repeat;
+    background-size: 3em, 3em;
+}
+
+footer {
+    position: fixed;
+    font-size: 100%;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3em;
+    background-color: rgb(246, 136, 73);
+    background-image: url('bot_left.png'), url('bot_right.png');
+    background-position: top left, top right;
+    background-repeat: no-repeat, no-repeat;
+    background-size: 7em, 7em;
+}
+
+footer .back, footer .add {
+    line-height: 2.5em;
+    position: absolute;
+    margin:auto;
+    top: 0;
+    bottom: 0;
+    height: 2.5em;
+    z-index: 3;
+}
+
+footer .back {
+    left: 1em;
+}
+
+footer .add {
+    right: 1em;
+}
+header .title {
+    text-align: center;
+    color: white;
+    display: inline-block;
+    font-weight: 200;
+    font-size: 150%;
+    margin: 0;
+    line-height: 2em;
+    padding: 0;
+    position: absolute;
+    left: 2em;
+    right: 2em;
+    white-space: nowrap;
+    overflow:hidden;
+    text-overflow:ellipsis;
+}
+
+input[type="text"], input[type="password"], input[type="email"], input[type="url"] {
     background-color: transparent;
     color:white;
     -webkit-appearance: none;
@@ -62,7 +367,7 @@ input[type="text"], input[type="password"] {
     font-family: "Helvetica Neue Interface M4",Helvetica Neue, Helvetica, sans-serif;
 }
 
-input[type="text"]:focus, input[type="password"]:focus {
+input[type="text"]:focus, input[type="password"]:focus, input[type="email"]:focus, input[type="url"]:focus  {
     box-shadow:none;
     background: rgba(255,255,255,0.1);
     outline: none;
@@ -92,7 +397,7 @@ input[type="submit"], button {
     box-shadow: none;
     border: none !important;
     color:white;
-    background-color: rgb(213,81,23);
+    background-color: rgb(232,70,25);
     outline: none;
     padding-left: 8px;
     padding-right: 8px;

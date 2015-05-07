@@ -1,5 +1,5 @@
 let React = require('react');
-let {ul, li, h1, p, span,div, button, input, form} = React.DOM;
+let {ul, li, h1, p, span,div, button, input, form, footer, header, img} = React.DOM;
 
 let not = (f) => (x) => !f(x);
 let requireAuth = require('./require-auth');
@@ -9,11 +9,25 @@ let users = require('./stores/users');
 let auth = require('./auth');
 let mqtt = require('./mqtt');
 
+
+let scrolledToBottom = (elem) =>
+   elem.scrollTop === (elem.scrollHeight - elem.offsetHeight);
+
+
 let connectMqtt = () =>
     Promise.all([auth.loggedInUser(),auth.token()])
     .then(([user,token]) => {
         return mqtt.connect(user,token);
     });
+
+let fromWho = (message, me) => {
+    console.log(message);
+    if(message.from === me) {
+        return 'from-me';
+    } else {
+        return 'from-them';
+    }
+}
 
 let fetchThread = (threadid) =>
     auth.token()
@@ -23,16 +37,43 @@ let fetchMessages = (threadid) =>
     auth.token()
     .then(token => messages.forThread(threadid,token));
 
+let fetchUsers = (thread) =>
+    auth.token()
+    .then(token =>
+        Promise.all(thread.users.map(user =>
+            users.get(user,token)
+        ))
+        .then(users => {
+            thread.users = users;
+            return thread;
+        })
+    );
+let notMe = (me) =>
+    (user) =>
+        user.id != me;
+let threadName = (thread,me) => {
+    if(thread.name) {
+        return thread.name;
+    } else if(thread.users) {
+        return thread.users.filter(notMe(me)).map(user => user.name).join(', ');
+    }
+}
+
 var Thread = React.createClass({
     contextTypes: {
       router: React.PropTypes.func
     },
     getInitialState: () => ({thread: {users: []}, messages: []}),
     componentDidMount() {
+        let {message} = this.refs;
+        let field = message.getDOMNode();
+        field.focus();
+
         let {router} = this.context;
         let {threadid}  = router.getCurrentParams();
 
         fetchThread(threadid)
+        .then(fetchUsers)
         .then(thread => this.setState({thread}));
 
         fetchMessages(threadid)
@@ -55,10 +96,16 @@ var Thread = React.createClass({
             });
         })
         .catch(error => {
-            console.log(error);
             throw error;
         });
         this.setState({subscribePromise});
+        window.addEventListener('resize', () => {
+            console.log(window.innerHeight);
+        });
+    },
+    back() {
+        let {router} = this.context;
+        router.transitionTo('/threads');
     },
     addMessage(event) {
         event.preventDefault();
@@ -79,22 +126,47 @@ var Thread = React.createClass({
         });
         //Clear field
         field.value = '';
+        this.scrollDown();
+    },
+    componentWillUpdate() {
+        let {scroller} = this.refs;
+        let elem = scroller.getDOMNode();
+        this.shouldScrollDown = scrolledToBottom(elem);
+    },
+    componentDidUpdate() {
+        if(this.shouldScrollDown) {
+            this.scrollDown();
+        }
+    },
+    scrollDown() {
+        let {scroller} = this.refs;
+        let elem = scroller.getDOMNode();
+        elem.scrollTop = elem.scrollHeight;
     },
     render() {
         let {thread, messages} = this.state;
         let {users} = thread;
+        let me = auth.loggedInUser();
         let messagelist = messages.map(message => {
-            return li({}, message.body);
+            return li({className: 'clear'},
+                      div({className:'message '+fromWho(message,me)},
+                            p({},message.body),
+                            img({src: '//placekitten.com/g/250/250'})));
         });
-        return div({},
-           h1({}, "This is a thread"),
-           form({onSubmit: this.addMessage},
-            input({ref: 'message'}),
-            input({type:'submit', hidden: true})
+        return div({className: 'thread'},
+            header({},
+                h1({className: 'title'}, threadName(thread,me))
+            ),
+           form({onSubmit: this.addMessage, className: 'form'},
+            input({type: 'text', ref: 'message', onFocus: () => setTimeout(()=> this.scrollDown(), 50)}),
+            input({type:'submit', hidden: true, value: ''})
            ),
-           p({}, thread.id),
-           p({}, users.join(', ')),
-           ul({}, messagelist)
+           div({className: 'scroller', ref: 'scroller'},
+           ul({className: 'messages'}, messagelist)
+            ),
+            footer({},
+                img({onClick: this.back, className: 'back', src: '/css/arrow_back.svg'})
+            )
         );
     }
 });

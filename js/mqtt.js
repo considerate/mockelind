@@ -13,7 +13,6 @@ let client = null;
 export function connect(userId, token) {
     //If there's already a connection use that one
     if (client) {
-        console.log('Client',client);
         return Promise.resolve(client);
     }
     return new Promise(function (resolve) {
@@ -29,10 +28,8 @@ export function connect(userId, token) {
             password: token,
             will: will
         });
-        console.log('mqtt client',mqttClient);
         client = mqttClient;
         client.on('error', (err) => {
-            console.log(err);
             reject(err);
         });
         client.on('connect', () => resolve(client));
@@ -41,7 +38,6 @@ export function connect(userId, token) {
         client.publish(topic, onlinePayload, {
             retain: true
         });
-        console.log('Connected');
         return client;
     });
 }

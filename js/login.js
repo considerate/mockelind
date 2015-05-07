@@ -8,7 +8,6 @@ var Login = React.createClass({
     submit(event) {
         event.preventDefault();
         let {router} = this.context;
-        console.log(router);
         var nextPath = router.getCurrentQuery().nextPath;
         let username = getValue(this,'username');
         let password = getValue(this,'password');
@@ -21,18 +20,17 @@ var Login = React.createClass({
                 router.replaceWith('/');
             }
         });
-        console.log(username,password);
     },
     render() {
-        return div({},
-        img({src: '/css/login_logo.png', className: 'logo'}),
-        img({src: '/css/banner.png', className: 'banner'}),
-        form({id: 'loginForm', onSubmit: this.submit},
-            input({type: 'text', ref: 'username'}),
-            input({type: 'password', ref: 'password'}),
-            input({type: 'submit', value: 'Log In'})
-        ),
-        a({href:'//friendbase.com'}, 'sign up for free')
+        return div({className: 'login'},
+            img({src: '/css/login_logo.png', className: 'logo'}),
+            img({src: '/css/banner.png', className: 'banner'}),
+            form({id: 'loginForm', onSubmit: this.submit},
+                input({type: 'text', ref: 'username', autoComplete: 'off', autoCorrect: 'off', autoCapitalize: 'off', spellCheck: false, inputMode: 'email'}),
+                input({type: 'password', ref: 'password'}),
+                input({type: 'submit', value: 'Log In'})
+            ),
+            a({href:'//friendbase.com'}, 'sign up for free')
         );
     }
 });
