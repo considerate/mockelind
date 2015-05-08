@@ -209,6 +209,13 @@ body {
     line-height: 1.5em;
 }
 
+.threadlist > li > .onlinestatus.online {
+    background-color: rgb(167,235,61);
+}
+.threadlist > li > .onlinestatus.offline {
+    background-color: rgb(167,235,61);
+}
+
 .threadlist > li > .onlinestatus.group {
     font-weight: 600;
     font-size: 140%;

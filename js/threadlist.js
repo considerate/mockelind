@@ -6,10 +6,16 @@ let requireAuth = require('./require-auth');
 let threads = require('./stores/threads');
 let users = require('./stores/users');
 let auth = require('./auth');
+let mqtt = require('./mqtt');
 
+let connectMqtt = () =>
+    Promise.all([auth.loggedInUser(),auth.token()])
+    .then(([user,token]) => {
+        return mqtt.connect(user,token);
+    });
 
 let isPrivateChat = (thread) =>
-    thread.private || thread.users.length <=2;
+    thread.private;
 let notMe = (me) =>
     (user) =>
         user.id != me;
@@ -20,6 +26,21 @@ let threadName = (thread,me) => {
         return thread.users.filter(notMe(me)).map(user => user.name).join(', ');
     }
 };
+
+let numUsersOnline = (onlineUsers, thread, me) =>
+    thread.users.filter(notMe(me))
+    .filter(user => onlineUsers[user.id])
+    .length;
+
+let onlineStatusClass = (count) => {
+    if(count === 1) {
+        return 'online';
+    } if(count > 1) {
+        return 'online';
+    } else {
+        return 'offline';
+    }
+}
 
 let fetchUsers = (thread) =>
     auth.token()
@@ -37,11 +58,12 @@ let fetchAllUsers = (threads) =>
     Promise.all(threads.map(fetchUsers));
 
 var ThreadList = React.createClass({
-    getInitialState: () => ({threads: []}),
+    getInitialState: () => ({threads: [], onlineUsers: {}}),
     updateList() {
         auth.token()
         .then(token => threads.mine(token))
         .then(fetchAllUsers)
+        .then(threads => threads.map(this.onlineStatus))
         .then(threads => {
             this.setState({threads});
         });
@@ -56,10 +78,28 @@ var ThreadList = React.createClass({
             threads.create(users,token)
             .then(data => data.thread)
             .then(thread => fetchUsers(thread,token))
+            .then(this.onlineStatus)
             .then(thread =>
                 this.setState({threads: this.state.threads.concat([thread])})
             )
         );
+    },
+    onlineStatus(thread) {
+        let {onlineUsers} = this.state;
+        thread.users.map(user => {
+            onlineUsers[user.id] = false;
+            connectMqtt()
+            .then(client => mqtt.subscribe(client, 'online/'+user.id))
+            .then(stream => {
+                stream.map(JSON.parse).onValue(message => {
+                    if(message.status !== 'offline') {
+                        onlineUsers[user.id] = true;
+                        this.setState({onlineUsers});
+                    }
+                });
+            });
+        });
+        return thread;
     },
     open(path) {
         let {router} = this.context;
@@ -74,19 +114,22 @@ var ThreadList = React.createClass({
     },
     render() {
         let me = auth.loggedInUser();
-        let {threads} = this.state;
-        let privateChats = threads.filter(isPrivateChat).map(thread =>
-            li({key: thread.id, onClick: this.open('/threads/'+thread.id)}, [
+        let {threads, onlineUsers} = this.state;
+        console.log('online', onlineUsers);
+        let privateChats = threads.filter(isPrivateChat).map(thread => {
+            let numOnline = numUsersOnline(onlineUsers,thread,me);
+            console.log(numOnline);
+            return li({key: thread.id, onClick: this.open('/threads/'+thread.id)}, [
                 img({src: '//placekitten.com/g/250/250'}),
                 div({},
                 h1(null, threadName(thread,me)),
                 p({className:'message'}, thread.text || 'Text goes here'),
                 span({className:'status'}, thread.status || 'Status text'),
-                span({className: 'online'}, thread.online)
+                span({className: onlineStatusClass(numOnline)}, thread.online)
                 ),
                 span({className: 'onlinestatus'})
             ])
-        );
+        });
         let groupChats = threads.filter(not(isPrivateChat)).map(thread =>
             li({key: thread.id, onClick: this.open('/threads/'+thread.id)}, [
                 img({src: '//placekitten.com/g/250/250'}),
