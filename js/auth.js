@@ -1,5 +1,12 @@
 let {fetchJSON, fetchSecure} = require('./fetch');
 let config = require('./config');
+let mqtt = require('./mqtt');
+
+let connectMqtt = () =>
+    Promise.all([loggedInUser(),token()])
+    .then(([user,token]) => {
+        return mqtt.connect(user,token);
+    });
 let _token = null;
 let _loggedInUser = null;
 _loggedInUser = _loggedInUser || localStorage.getItem('user');
