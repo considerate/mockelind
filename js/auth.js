@@ -33,8 +33,13 @@ export let token = userToken;
 export let loggedInUser = () => _loggedInUser;
 
 export let logout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    _token = null;
-    _loggedInUser = null;
+    connectMqtt(_loggedInUser,_token)
+    .then(client => client.publish(JSON.stringify({
+        status: 'offline'
+    }), () => {
+        _token = null;
+        _loggedInUser = null;
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+    }));
 };
