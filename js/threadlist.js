@@ -58,7 +58,7 @@ let fetchAllUsers = (threads) =>
     Promise.all(threads.map(fetchUsers));
 
 var ThreadList = React.createClass({
-    getInitialState: () => ({threads: [], onlineUsers: {}}),
+	getInitialState: () => ({threads: [], onlineUsers: {}, friends: [], showFriendList: false}),
     updateList() {
         auth.token()
         .then(token => threads.mine(token))
@@ -69,33 +69,45 @@ var ThreadList = React.createClass({
         });
     },
     componentDidMount() {
+	let {friends} = this.state;
         this.updateList();
+	auth.token()
+	.then(token => 
+		users.get(auth.loggedInUser(), token)
+		.then(user => [user,token]))
+	.then(([user,token]) =>  
+		Promise.all(user.friends.map(friend => users.get(friend, token))))
+	.then(friends => this.setState({friends}))
     },
-    newThread() {
-        let users = ['viktor'];
+    newThread(users) {
         auth.token()
-        .then(token =>
-            threads.create(users,token)
+	.then(token =>
+            threads.create(users.map(user => user.id),token)
             .then(data => data.thread)
             .then(thread => fetchUsers(thread,token))
             .then(this.onlineStatus)
             .then(thread =>
-                this.setState({threads: this.state.threads.concat([thread])})
+                this.setState({threads: this.state.threads.concat([thread]), showFriendList:false})
             )
-        );
+	);
     },
     onlineStatus(thread) {
         let {onlineUsers} = this.state;
+	console.log('mounted:  ', this.isMounted());
         thread.users.map(user => {
             onlineUsers[user.id] = false;
             connectMqtt()
             .then(client => mqtt.subscribe(client, 'online/'+user.id))
             .then(stream => {
                 stream.map(JSON.parse).onValue(message => {
+			console.log('MESSAGE LOGGING    ', message, user);
                     if(message.status !== 'offline') {
                         onlineUsers[user.id] = true;
                         this.setState({onlineUsers});
-                    }
+                    } else {
+		    	onlineUsers[user.id] = false;
+                        this.setState({onlineUsers});
+		    }
                 });
             });
         });
@@ -114,41 +126,47 @@ var ThreadList = React.createClass({
     },
     render() {
         let me = auth.loggedInUser();
-        let {threads, onlineUsers} = this.state;
+        let {threads, onlineUsers, friends, showFriendList} = this.state;
+	console.log('Friends', friends);
+	friends = friends || [];
+	console.log('Friends', friends);
         console.log('online', onlineUsers);
+	    console.log('users     ',Object.keys(onlineUsers).filter(userId => onlineUsers[userId]));
         let privateChats = threads.filter(isPrivateChat).map(thread => {
             let numOnline = numUsersOnline(onlineUsers,thread,me);
-            console.log(numOnline);
             return li({key: thread.id, onClick: this.open('/threads/'+thread.id)}, [
                 img({src: '//placekitten.com/g/250/250'}),
                 div({},
                 h1(null, threadName(thread,me)),
                 p({className:'message'}, thread.text || 'Text goes here'),
-                span({className:'status'}, thread.status || 'Status text'),
-                span({className: onlineStatusClass(numOnline)}, thread.online)
+                span({className:'status'}, thread.status || 'Status text')
                 ),
-                span({className: 'onlinestatus'})
+                span({className: 'onlinestatus' + ' ' + onlineStatusClass(numOnline)})
             ])
         });
-        let groupChats = threads.filter(not(isPrivateChat)).map(thread =>
-            li({key: thread.id, onClick: this.open('/threads/'+thread.id)}, [
+	let groupChats = threads.filter(not(isPrivateChat)).map(thread => {
+            let numOnline = numUsersOnline(onlineUsers,thread,me);
+            return li({key: thread.id, onClick: this.open('/threads/'+thread.id)}, [
                 img({src: '//placekitten.com/g/250/250'}),
                 div({},
                 h1(null, threadName(thread,me)),
                 p({className:'message'}, thread.text || 'Text goes here lets make this text longer so that it wont fit in one line even if we try really hard.'),
                 span({className:'status'}, thread.status || 'Status text')
                 ),
-                span({className: 'onlinestatus group'}, '23')
+                span({className: 'onlinestatus' + ' ' + onlineStatusClass(numOnline)}, numOnline)
             ])
-        );
+	});
+	let showListClass = showFriendList?'show':'';
         return div({className: 'threads'},
             header({},
                 h1({className: 'title'}, 'Messages')
             ),
             ul({className: 'threadlist'}, privateChats.concat(groupChats)),
+	    ul({className: 'friendList ' + showListClass}, friends.map(friend => li({onClick:()=>this.newThread([friend])}, friend.name)).concat
+		    ([button({onClick: ()=> this.setState({showFriendList:false})}, 'Cancel')])),
             footer({},
                 img({onClick: this.logout, className: 'back', src: '/css/arrow_back.svg'}),
-                img({onClick: this.newThread, className: 'add', src: '/css/add.svg'})
+                img({onClick: ()=>this.setState({showFriendList:true}), className: 'add', src: '/css/add.svg'})
             )
         );
     }

@@ -41,7 +41,7 @@ export let loggedInUser = () => _loggedInUser;
 
 export let logout = () => {
     connectMqtt(_loggedInUser,_token)
-    .then(client => client.publish(JSON.stringify({
+    .then(client => client.publish('online/'+ _loggedInUser, JSON.stringify({
         status: 'offline'
     }), () => {
         _token = null;

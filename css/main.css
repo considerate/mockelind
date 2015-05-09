@@ -174,6 +174,11 @@ body {
     margin-top: 0;
 }
 
+.threadlist .friendlist{
+   position: absolute;
+   top: 0;
+}
+
 .threadlist > li {
     border-bottom: 1px solid rgba(210,210,210,0.6);
     margin: 0;
@@ -213,7 +218,7 @@ body {
     background-color: rgb(167,235,61);
 }
 .threadlist > li > .onlinestatus.offline {
-    background-color: rgb(167,235,61);
+    background-color: rgb(235,50,61);
 }
 
 .threadlist > li > .onlinestatus.group {
