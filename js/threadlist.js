@@ -11,6 +11,7 @@ let mqtt = require('./mqtt');
 let connectMqtt = () =>
 Promise.all([auth.loggedInUser(),auth.token()])
 .then(([user,token]) => {
+    console.log(auth.loggedInUser());
     return mqtt.connect(user,token);
 });
 
@@ -26,6 +27,8 @@ let threadName = (thread,me) => {
         return thread.users.filter(notMe(me)).map(user => user.name).join(', ');
     }
 };
+let threadPic = (thread,me) =>
+    thread.users.filter(notMe(me))[0].picture || '//placekitten.com/g/302/302';
 
 let numUsersOnline = (onlineUsers, thread, me) =>
 thread.users.filter(notMe(me))
@@ -130,7 +133,7 @@ auth.token()
              let privateChats = threads.filter(isPrivateChat).map(thread => {
                  let numOnline = numUsersOnline(onlineUsers,thread,me);
                  return li({key: me+'-'+thread.id, onClick: this.open('/threads/'+thread.id)}, [
-                     img({src: '//placekitten.com/g/250/250'}),
+                     img({src: threadPic(thread,me)}),
                      div({},
                          h1(null, threadName(thread,me)),
                          p({className:'message'}, thread.text || 'Text goes here'),
@@ -142,7 +145,7 @@ auth.token()
              let groupChats = threads.filter(not(isPrivateChat)).map(thread => {
                  let numOnline = numUsersOnline(onlineUsers,thread,me);
                  return li({key: me+'-'+thread.id, onClick: this.open('/threads/'+thread.id)}, [
-                     img({src: '//placekitten.com/g/250/250'}),
+                     img({src: threadPic(thread,me)}),
                      div({},
                          h1(null, threadName(thread,me)),
                          p({className:'message'}, thread.text || 'Text goes here lets make this text longer so that it wont fit in one line even if we try really hard.'),

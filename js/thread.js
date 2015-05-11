@@ -143,15 +143,23 @@ var Thread = React.createClass({
         let elem = scroller.getDOMNode();
         elem.scrollTop = elem.scrollHeight;
     },
+    userPic(id) {
+        let {thread} = this.state;
+        let user = thread.users.filter(user => user.id === id)[0];
+        if(!user || !user.picture) {
+            return '//placekitten.com/g/302/302';
+        }
+        return user.picture;
+    },
     render() {
-        let {thread, messages} = this.state;
+        let {thread, messages, userPics} = this.state;
         let {users} = thread;
         let me = auth.loggedInUser();
         let messagelist = messages.map(message => {
             return li({className: 'clear'},
                       div({className:'message '+fromWho(message,me)},
                             p({},message.body),
-                            img({src: '//placekitten.com/g/250/250'})));
+                            img({src: this.userPic(message.from)})));
         });
         return div({className: 'thread'},
             header({},

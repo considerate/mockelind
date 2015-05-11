@@ -8,6 +8,7 @@ let DefaultRoute = factory(Router.DefaultRoute);
 let NotFoundRoute = factory(Router.NotFoundRoute);
 let RouteHandler = factory(Router.RouteHandler);
 let Login = require('./js/login');
+let mqtt = require('./js/mqtt');
 let ThreadList = require('./js/threadlist');
 let Thread = require('./js/thread');
 let createElement = React.createElement;
@@ -35,6 +36,11 @@ let routes = Route({location: "history", name: 'app', path: '/', handler: App},
     Route({name: 'threads', path: 'threads', handler: ThreadList}),
     Route({name: 'login', path: 'login', handler: Login})
 );
+
+window.onbeforeunload = () => {
+    console.log('On before');
+    mqtt.disconnect();
+}
 
 window.onload = () => {
     Router.run(routes, function(handler) {
