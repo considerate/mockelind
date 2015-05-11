@@ -10,6 +10,37 @@ body {
     height: 100%;
 }
 
+
+.overlay {
+    position: fixed;
+    background-color: rgba(0,0,0,0.78);
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    clear: both;
+    display:none;
+}
+
+.overlay.show {
+    display: block;
+}
+
+.overlay .modal {
+    position: absolute;
+    top: 30px;
+    left: 30px;
+    right: 30px;
+    background-color: white;
+    padding: 16px;
+    border-radius: 4px;
+}
+
+
+.friendList {
+
+}
+
 .login {
     min-height: 100%;
     color:white;
