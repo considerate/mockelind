@@ -44,9 +44,13 @@ export let logout = () => {
     .then(client => client.publish('online/'+ _loggedInUser, JSON.stringify({
         status: 'offline'
     }), () => {
-        _token = null;
-        _loggedInUser = null;
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
+        mqtt.disconnect()
+        .then(() => {
+            debugger;
+            _token = null;
+            _loggedInUser = null;
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+        });
     }));
 };

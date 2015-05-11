@@ -47,8 +47,8 @@ export function disconnect() {
         if(!client) {
             throw new Error('No client to disconnect');
         }
-        mqttClient = client;
-        userId = client.options.username;
+        let mqttClient = client;
+        let userId = client.options.username;
         //Allow for new connections
         client = null;
         //Then log out and close this connection

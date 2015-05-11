@@ -59,7 +59,7 @@ auth.token()
 
      var ThreadList = React.createClass({
          getInitialState: () => ({threads: [], onlineUsers: {}, friends: [], showFriendList: false}),
-             updateList() {
+         updateList() {
              auth.token()
              .then(token => threads.mine(token))
              .then(fetchAllUsers)
@@ -123,16 +123,13 @@ auth.token()
              router.transitionTo('/login');
          },
          render() {
+             console.log('Render');
              let me = auth.loggedInUser();
              let {threads, onlineUsers, friends, showFriendList} = this.state;
-             console.log('Friends', friends);
              friends = friends || [];
-             console.log('Friends', friends);
-             console.log('online', onlineUsers);
-             console.log('users     ',Object.keys(onlineUsers).filter(userId => onlineUsers[userId]));
              let privateChats = threads.filter(isPrivateChat).map(thread => {
                  let numOnline = numUsersOnline(onlineUsers,thread,me);
-                 return li({key: thread.id, onClick: this.open('/threads/'+thread.id)}, [
+                 return li({key: me+'-'+thread.id, onClick: this.open('/threads/'+thread.id)}, [
                      img({src: '//placekitten.com/g/250/250'}),
                      div({},
                          h1(null, threadName(thread,me)),
@@ -144,7 +141,7 @@ auth.token()
              });
              let groupChats = threads.filter(not(isPrivateChat)).map(thread => {
                  let numOnline = numUsersOnline(onlineUsers,thread,me);
-                 return li({key: thread.id, onClick: this.open('/threads/'+thread.id)}, [
+                 return li({key: me+'-'+thread.id, onClick: this.open('/threads/'+thread.id)}, [
                      img({src: '//placekitten.com/g/250/250'}),
                      div({},
                          h1(null, threadName(thread,me)),
@@ -156,7 +153,7 @@ auth.token()
              });
              let showListClass = showFriendList?'show':'';
              let cancelButton = button({onClick: () => this.setState({showFriendList:false})}, 'Cancel');
-             let friendList = friends.map(friend => li({onClick:()=>this.newThread([friend])}, friend.name));
+             let friendList = friends.map(friend => li({key: friend.id, onClick:()=>this.newThread([friend])}, friend.name));
              return div({className: 'threads'},
                         header({},
                                h1({className: 'title'}, 'Messages')
