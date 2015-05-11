@@ -15,7 +15,7 @@ export function connect(userId, token) {
     if (client) {
         return Promise.resolve(client);
     }
-    return new Promise(function (resolve) {
+    return new Promise(function (resolve, reject) {
         var topic = 'online/'+userId;
         var will = {
             topic: topic,
