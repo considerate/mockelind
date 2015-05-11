@@ -46,11 +46,10 @@ export let logout = () => {
     }), () => {
         mqtt.disconnect()
         .then(() => {
-            debugger;
             _token = null;
             _loggedInUser = null;
-            localStorage.removeItem('token');
-            localStorage.removeItem('user');
+            delete localStorage.token;
+            delete localStorage.user;
         });
     }));
 };
