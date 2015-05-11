@@ -54,7 +54,8 @@ export let logout = () => {
 	    localStorage.removeItem('token');
         });
     }));
-_token = null;
+    
+            _token = null;
             _loggedInUser = null;
             delete localStorage.token;
             delete localStorage.user;
